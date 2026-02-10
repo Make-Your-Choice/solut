@@ -21,7 +21,11 @@ class SuitCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         color: _suitCard.isFaceUp ? AppColors.beige : AppColors.lemonChiffon,
-        border: Border.all(color: _suitCard.isFaceUp ? CardUtils.getColor(_suitCard.suit) : AppColors.lightBronze)
+        border: Border.all(
+          color: _suitCard.isFaceUp
+              ? CardUtils.getColor(_suitCard.suit.color)
+              : AppColors.lightBronze,
+        ),
       ),
       height: cardHeight,
       width: cardWidth,
@@ -34,31 +38,41 @@ class SuitCard extends StatelessWidget {
                   children: [
                     Text(
                       CardUtils.getTitle(_suitCard.number),
-                      style: TextStyle(fontSize: 12),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.darkCoffee,
+                        fontWeight: FontWeight.normal,
+                        decoration: TextDecoration.none
+                      ),
                     ),
                     Icon(
-                      CardUtils.getIcon(_suitCard.suit),
-                      color: CardUtils.getColor(_suitCard.suit),
+                      CardUtils.getIcon(_suitCard.suit.type),
+                      color: CardUtils.getColor(_suitCard.suit.color),
                       size: 15,
                     ),
                   ],
                 ),
                 Icon(
-                  CardUtils.getIcon(_suitCard.suit),
-                  color: CardUtils.getColor(_suitCard.suit),
+                  CardUtils.getIcon(_suitCard.suit.type),
+                  color: CardUtils.getColor(_suitCard.suit.color),
                   size: 40,
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Icon(
-                      CardUtils.getIcon(_suitCard.suit),
-                      color: CardUtils.getColor(_suitCard.suit),
+                      CardUtils.getIcon(_suitCard.suit.type),
+                      color: CardUtils.getColor(_suitCard.suit.color),
                       size: 15,
                     ),
                     Text(
                       CardUtils.getTitle(_suitCard.number),
-                      style: TextStyle(fontSize: 12),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.darkCoffee,
+                        fontWeight: FontWeight.normal,
+                          decoration: TextDecoration.none
+                      ),
                     ),
                   ],
                 ),

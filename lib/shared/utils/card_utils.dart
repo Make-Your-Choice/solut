@@ -5,8 +5,8 @@ import '../consts/card_number.dart';
 import '../theme/app_colors.dart';
 
 class CardUtils {
-  static IconData getIcon(SuitType suit) {
-    switch (suit) {
+  static IconData getIcon(SuitType suitType) {
+    switch (suitType) {
       case SuitType.clubs : return CupertinoIcons.suit_club_fill;
       case SuitType.diamonds : return CupertinoIcons.suit_diamond_fill;
       case SuitType.hearts: return CupertinoIcons.suit_heart_fill;
@@ -14,17 +14,17 @@ class CardUtils {
     }
   }
 
-  static Color getColor(SuitType suit) {
-    switch (suit) {
-      case SuitType.clubs || SuitType.spades : return AppColors.darkCoffee;
-      case SuitType.diamonds || SuitType.hearts : return AppColors.scarlettRush;
+  static Color getColor(SuitColor suitColor) {
+    switch (suitColor) {
+      case SuitColor.black : return AppColors.darkCoffee;
+      case SuitColor.red: return AppColors.scarlettRush;
     }
   }
 
   static String getTitle(CardNumber number) {
     switch (number) {
       case CardNumber.A || CardNumber.J || CardNumber.Q || CardNumber.K : return number.name;
-      default: return number.index.toString();
+      default: return (number.index + 1).toString();
     }
   }
 }

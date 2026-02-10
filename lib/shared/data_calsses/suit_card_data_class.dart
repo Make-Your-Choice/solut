@@ -1,13 +1,10 @@
-import 'dart:ui';
-
-import 'package:flutter/cupertino.dart';
+import 'package:solut/shared/data_calsses/suit_data_class.dart';
 
 import '../consts/card_number.dart';
-import '../consts/card_type.dart';
 
 class SuitCardDataClass {
   final CardNumber number;
-  final SuitType suit;
+  final SuitDataClass suit;
   bool isFaceUp;
   SuitCardDataClass({required this.suit, required this.number, this.isFaceUp = false});
 

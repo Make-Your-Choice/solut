@@ -1,13 +1,13 @@
 import 'package:flutter/cupertino.dart';
-import 'package:solut/shared/consts/card_type.dart';
+import 'package:solut/shared/data_calsses/suit_data_class.dart';
 
 import '../theme/app_colors.dart';
 import '../utils/card_utils.dart';
 
 class CardCell extends StatelessWidget {
-  const CardCell({super.key, required SuitType suit}) : _suit = suit;
+  const CardCell({super.key, required SuitDataClass suit}) : _suit = suit;
 
-  final SuitType _suit;
+  final SuitDataClass _suit;
 
   @override
   Widget build(BuildContext context) {
@@ -20,8 +20,8 @@ class CardCell extends StatelessWidget {
         height: 90,
         width: 70,
         child: Icon(
-          CardUtils.getIcon(_suit),
-          color: CardUtils.getColor(_suit),
+          CardUtils.getIcon(_suit.type),
+          color: CardUtils.getColor(_suit.color),
           size: 40,
         ),
     );

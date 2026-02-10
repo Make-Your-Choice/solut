@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:solut/shared/consts/card_sizes.dart';
 import 'package:solut/shared/consts/card_type.dart';
 import 'package:solut/shared/data_calsses/suit_card_data_class.dart';
+import 'package:solut/shared/data_calsses/suit_data_class.dart';
 import 'package:solut/shared/theme/app_colors.dart';
 import 'package:solut/shared/ui%20kit/card_cell.dart';
 
@@ -14,13 +15,11 @@ import '../../../shared/ui kit/suit_card.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-
   final List<SuitCardDataClass> _uncategorized = List.empty(growable: true);
 
   final List<SuitCardDataClass> _clubs = List.empty(growable: true);
@@ -37,8 +36,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<SuitCardDataClass> _column7 = List.empty(growable: true);
 
   final ValueNotifier<int> _fromColumn = ValueNotifier(0);
+  final ValueNotifier<int> _startIndex = ValueNotifier(-1);
 
   static const double offset = 20;
+
+  double shrinkExtent = 1;
 
   List<SuitCardDataClass> getColumnValues(int index, int length) {
     List<SuitCardDataClass> currentList = [];
@@ -46,6 +48,138 @@ class _HomeScreenState extends State<HomeScreen> {
       currentList.add(cards[i]);
     }
     return currentList;
+  }
+
+  List<SuitCardDataClass> getCardsWithOffset(
+    DragTargetDetails<SuitCardDataClass> details,
+    List<SuitCardDataClass> target,
+  ) {
+    return target.sublist(target.indexOf(details.data));
+  }
+
+  void replaceCards(
+    DragTargetDetails<SuitCardDataClass> details,
+    List<SuitCardDataClass> target,
+  ) {
+    target.removeRange(target.indexOf(details.data), target.length);
+    if (target.isNotEmpty) {
+      target.last.setFaceUp(true);
+    }
+  }
+
+  bool checkCardNumberOk(SuitCardDataClass target, SuitCardDataClass dest) {
+    return dest.number.index - target.number.index == 1 &&
+        target.number.index < dest.number.index;
+  }
+
+  bool checkCardSuitOk(SuitCardDataClass target, SuitCardDataClass dest) {
+    return dest.suit.color != target.suit.color;
+  }
+
+  void handleDrag(
+    DragTargetDetails<SuitCardDataClass> details,
+    List<SuitCardDataClass> cards,
+    int fromColumn,
+    int currentColumn,
+  ) {
+    if (fromColumn == currentColumn) {
+      _fromColumn.value = 0;
+      return;
+    }
+
+
+    final List<SuitCardDataClass> current = List.empty(growable: true);
+    switch (fromColumn) {
+      case 1:
+        {
+          current.addAll(getCardsWithOffset(details, _column1));
+          if (cards.isNotEmpty) {
+            if (!checkCardNumberOk(current.first, cards.last)) {
+              _fromColumn.value = 0;
+              return;
+            }
+          }
+          replaceCards(details, _column1);
+        }
+      case 2:
+        {
+          current.addAll(getCardsWithOffset(details, _column2));
+          if (cards.isNotEmpty) {
+            if (!checkCardNumberOk(current.first, cards.last)) {
+              _fromColumn.value = 0;
+              return;
+            }
+          }
+          replaceCards(details, _column2);
+        }
+      case 3:
+        {
+          current.addAll(getCardsWithOffset(details, _column3));
+          if (cards.isNotEmpty) {
+            if (!checkCardNumberOk(current.first, cards.last)) {
+              _fromColumn.value = 0;
+              return;
+            }
+          }
+          replaceCards(details, _column3);
+        }
+      case 4:
+        {
+          current.addAll(getCardsWithOffset(details, _column4));
+          if (cards.isNotEmpty) {
+            if (!checkCardNumberOk(current.first, cards.last)) {
+              _fromColumn.value = 0;
+              return;
+            }
+          }
+          replaceCards(details, _column4);
+        }
+      case 5:
+        {
+          current.addAll(getCardsWithOffset(details, _column5));
+          if (cards.isNotEmpty) {
+            if (!checkCardNumberOk(current.first, cards.last)) {
+              _fromColumn.value = 0;
+              return;
+            }
+          }
+          replaceCards(details, _column5);
+        }
+      case 6:
+        {
+          current.addAll(getCardsWithOffset(details, _column6));
+          if (cards.isNotEmpty) {
+            if (!checkCardNumberOk(current.first, cards.last)) {
+              _fromColumn.value = 0;
+              return;
+            }
+          }
+          replaceCards(details, _column6);
+        }
+      case 7:
+        {
+          current.addAll(getCardsWithOffset(details, _column7));
+          if (cards.isNotEmpty) {
+            if (!checkCardNumberOk(current.first, cards.last)) {
+              _fromColumn.value = 0;
+              return;
+            }
+          }
+          replaceCards(details, _column7);
+        }
+    }
+
+    if (cards.length + current.length > 9) {
+      setState(() {
+        shrinkExtent = 0.8;
+      });
+    } else if (cards.length + current.length <= 12) {
+      setState(() {
+        shrinkExtent = 0.6;
+      });
+    }
+    cards.addAll(current);
+    _fromColumn.value = 0;
   }
 
   @override
@@ -98,63 +232,62 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Padding(
-        padding: EdgeInsets.only(
-            left: MediaQuery.viewPaddingOf(context).left + 16,
-            right: MediaQuery.viewPaddingOf(context).right + 16,
-            top: 24, bottom: 24),
-        child: Column(
-          spacing: 16,
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  spacing: 10,
-                  children: [
-                    SuitCard(
-                        suitCard: _uncategorized[26]
-                    ),
-                    SuitCard(
-                      suitCard: _uncategorized[27],
-                    ),
-                  ],
-                ),
-                Row(
-                  spacing: 10,
-                  children: [
-                    _spades.isNotEmpty ?
-                    SuitCard(
-                        suitCard: _spades.last
-                    ) : CardCell(suit: SuitType.spades),
-                    _diamonds.isNotEmpty ?
-                    Container(
-                      color: AppColors.scarlettRush,
-                      height: 90,
-                      width: 70,
-                    ) : CardCell(suit: SuitType.diamonds),
-                    _clubs.isNotEmpty ?
-                    Container(
-                      color: AppColors.scarlettRush,
-                      height: 90,
-                      width: 70,
-                    ) : CardCell(suit: SuitType.clubs),
-                    _hearts.isNotEmpty ?
-                    Container(
-                      color: AppColors.scarlettRush,
-                      height: 90,
-                      width: 70,
-                    ) : CardCell(suit: SuitType.hearts),
-                  ],
-                ),
-              ],
-            ),
-            // SizedBox(height: 16,),
-            Expanded(child: Row(
+      padding: EdgeInsets.only(
+        left: MediaQuery.viewPaddingOf(context).left + 16,
+        right: MediaQuery.viewPaddingOf(context).right + 16,
+        top: 24,
+        bottom: 24,
+      ),
+      child: Column(
+        spacing: 16,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                spacing: 10,
+                children: [
+                  SuitCard(suitCard: _uncategorized[22]),
+                  SuitCard(suitCard: _uncategorized[23]),
+                ],
+              ),
+              Row(
+                spacing: 10,
+                children: [
+                  _spades.isNotEmpty
+                      ? SuitCard(suitCard: _spades.last)
+                      : CardCell(suit: SuitDataClass(type: SuitType.spades, color: SuitColor.black)),
+                  _diamonds.isNotEmpty
+                      ? Container(
+                          color: AppColors.scarlettRush,
+                          height: 90,
+                          width: 70,
+                        )
+                      : CardCell(suit: SuitDataClass(type: SuitType.diamonds, color: SuitColor.red)),
+                  _clubs.isNotEmpty
+                      ? Container(
+                          color: AppColors.scarlettRush,
+                          height: 90,
+                          width: 70,
+                        )
+                      : CardCell(suit: SuitDataClass(type: SuitType.clubs, color: SuitColor.black)),
+                  _hearts.isNotEmpty
+                      ? Container(
+                          color: AppColors.scarlettRush,
+                          height: 90,
+                          width: 70,
+                        )
+                      : CardCell(suit: SuitDataClass(type: SuitType.hearts, color: SuitColor.red)),
+                ],
+              ),
+            ],
+          ),
+          Expanded(
+            child: Row(
               spacing: 16,
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -167,158 +300,88 @@ class _HomeScreenState extends State<HomeScreen> {
                 column(_column6, 6),
                 column(_column7, 7),
               ],
-            ))
-          ],
-        ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget column(List<SuitCardDataClass> cards, int columnNumber) {
     return Flexible(
-        child: ValueListenableBuilder(valueListenable: _fromColumn,
-            builder: (context, fromColumn, _) =>
-                DragTarget<SuitCardDataClass>(
-                    onAcceptWithDetails: (details) {
-                      final List<SuitCardDataClass> current = List
-                          .empty(growable: true);
-                      switch (fromColumn) {
-                        case 1:
-                          {
-                            current.addAll(_column1
-                                .sublist(
-                                _column1.indexOf(details.data)));
-                            _column1.removeRange(
-                                _column1.indexOf(details.data),
-                                _column1.length);
-                          }
-                        case 2:
-                          {
-                            current.addAll(_column2
-                                .sublist(
-                                _column2.indexOf(details.data)));
-                            _column2.removeRange(
-                                _column2.indexOf(details.data),
-                                _column2.length);
-                          }
-                        case 3:
-                          {
-                            current.addAll(_column3
-                                .sublist(
-                                _column3.indexOf(details.data)));
-                            _column3.removeRange(
-                                _column3.indexOf(details.data),
-                                _column3.length);
-                          }
-                        case 4:
-                          {
-                            current.addAll(_column4
-                                .sublist(
-                                _column4.indexOf(details.data)));
-                            _column4.removeRange(
-                                _column4.indexOf(details.data),
-                                _column4.length);
-                          }
-                        case 5:
-                          {
-                            current.addAll(_column5
-                                .sublist(
-                                _column5.indexOf(details.data)));
-                            _column5.removeRange(
-                                _column5.indexOf(details.data),
-                                _column5.length);
-                          }
-                        case 6:
-                          {
-                            current.addAll(_column6
-                                .sublist(
-                                _column6.indexOf(details.data)));
-                            _column6.removeRange(
-                                _column6.indexOf(details.data),
-                                _column6.length);
-                          }
-                        case 7:
-                          {
-                            current.addAll(_column7
-                                .sublist(
-                                _column7.indexOf(details.data)));
-                            _column7.removeRange(
-                                _column7.indexOf(details.data),
-                                _column7.length);
-                          }
-                      }
-                      cards.addAll(current);
-                      _fromColumn.value = 0;
-                    },
-                    builder: (context, accepted, rejected) =>
-                        Stack(
-                            alignment: AlignmentGeometry.topCenter,
-                            clipBehavior: Clip.none,
-                            children: [
-                              ...cards.map((item) =>
-                                  Positioned(
-                                      top: cards.indexOf(item)
-                                          .toDouble() * offset,
-                                      child: Draggable(
-                                          onDragStarted: () {
-                                            _fromColumn.value = columnNumber;
-                                          },
-                                          onDraggableCanceled: (
-                                              velocity,
-                                              dragOffset) {
-                                            _fromColumn.value = 0;
-                                          },
-                                          dragAnchorStrategy: (
-                                              draggable, context,
-                                              dragOffset) {
-                                            return Offset(
-                                                cardWidth / 2,
-                                                (cardHeight -
-                                                    (cards
-                                                        .length -
-                                                        cards
-                                                            .indexOf(
-                                                            item)) *
-                                                        offset)
-                                                    .toDouble());
-                                          },
-                                          hitTestBehavior: HitTestBehavior
-                                              .opaque,
-                                          data: item,
-                                          feedback: SizedBox(
-                                              width: cardWidth,
-                                              height: cardHeight +
-                                                  (cards.length -
-                                                      cards
-                                                          .indexOf(
-                                                          item)) *
-                                                      offset,
-                                              child: Stack(
-                                                clipBehavior: Clip
-                                                    .none,
-                                                // mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  ...cards
-                                                      .sublist(
-                                                      cards
-                                                          .indexOf(
-                                                          item))
-                                                      .map((
-                                                      innerItem) =>
-                                                      Positioned(
-                                                          top: cards
-                                                              .indexOf(
-                                                              innerItem)
-                                                              .toDouble() *
-                                                              offset,
-                                                          child: SuitCard(
-                                                              suitCard: innerItem)
-                                                      ))
-                                                ],
-                                              )),
-                                          child: SuitCard(
-                                              suitCard: item)
-                                      )))
-                            ]
-                        ))));
+      child: ValueListenableBuilder(
+        valueListenable: _fromColumn,
+        builder: (context, fromColumn, _) => DragTarget<SuitCardDataClass>(
+          onAcceptWithDetails: (details) =>
+              handleDrag(details, cards, fromColumn, columnNumber),
+          builder: (context, accepted, rejected) => ValueListenableBuilder(
+            valueListenable: _startIndex,
+            builder: (context, startIndex, _) => Stack(
+              alignment: AlignmentGeometry.topCenter,
+              clipBehavior: Clip.none,
+              children: [
+                ...cards.map(
+                  (item) {
+
+                    final currentIndex = cards.indexOf(item);
+
+                    return Positioned(
+                    top: currentIndex.toDouble() * offset * shrinkExtent,
+                    child: Draggable(
+                      onDragStarted: () {
+                        _fromColumn.value = columnNumber;
+                        _startIndex.value = currentIndex;
+                      },
+                      onDraggableCanceled: (velocity, dragOffset) {
+                        _fromColumn.value = 0;
+                        _startIndex.value = -1;
+                      },
+                      dragAnchorStrategy: childDragAnchorStrategy,
+                      hitTestBehavior: HitTestBehavior.opaque,
+                      data: item,
+                      feedback: Container(
+                        clipBehavior: Clip.none,
+                        width: cardWidth,
+                        alignment: Alignment.topCenter,
+                        decoration: BoxDecoration(),
+                        height:
+                            cardHeight +
+                            (cards.length - currentIndex) *
+                                offset *
+                                shrinkExtent,
+                        child: Stack(
+                          alignment: AlignmentGeometry.topCenter,
+                          clipBehavior: Clip.none,
+                          children: [
+                            ...cards
+                                .sublist(currentIndex)
+                                .map(
+                                  (innerItem) => Positioned(
+                                    top:
+                                        (cards.indexOf(innerItem) -
+                                            currentIndex) *
+                                        offset *
+                                        shrinkExtent,
+                                    child: SuitCard(suitCard: innerItem),
+                                  ),
+                                ),
+                          ],
+                        ),
+                      ),
+
+                      child:
+                          startIndex <= currentIndex &&
+                              columnNumber == fromColumn
+                          ? SizedBox()
+                          : SuitCard(suitCard: item),
+                    ),
+                  );}
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
