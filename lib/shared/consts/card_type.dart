@@ -1,6 +1,11 @@
 enum SuitType {
   clubs,
   diamonds,
-  hearts,
-  spades
+  spades,
+  hearts
+}
+
+enum SuitColor {
+  red,
+  black
 }
