@@ -1,6 +1,5 @@
 enum CardNumber {
   A,
-  one,
   two,
   three,
   four,
