@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final ValueNotifier<int> _srcColumnIndex = ValueNotifier(-1);
   final ValueNotifier<int> _startCardIndex = ValueNotifier(-1);
+
+  final ValueNotifier<Offset> _dragDetails = ValueNotifier(Offset.zero);
 
   static const double offset = 20;
 
@@ -187,43 +190,55 @@ class _HomeScreenState extends State<HomeScreen> {
                       _srcColumnIndex.value = columnNumber;
                       _startCardIndex.value = currentIndex;
                     },
+                    onDragUpdate: (DragUpdateDetails details) {
+                      if ((_dragDetails.value.dx - details.delta.dx).abs() >
+                          0.5) {
+                        _dragDetails.value = details.delta;
+                      }
+                    },
                     onDraggableCanceled: (velocity, dragOffset) {
+                      _dragDetails.value = Offset.zero;
                       _srcColumnIndex.value = -1;
                       _startCardIndex.value = -1;
                     },
                     dragAnchorStrategy: childDragAnchorStrategy,
                     hitTestBehavior: HitTestBehavior.opaque,
                     data: item,
-                    feedback: Container(
-                      clipBehavior: Clip.none,
-                      width: cardWidth,
-                      alignment: Alignment.topCenter,
-                      decoration: BoxDecoration(),
-                      height:
-                          cardHeight +
-                          (cards.length - currentIndex) * offset * shrinkExtent,
-                      child: Stack(
-                        alignment: AlignmentGeometry.topCenter,
-                        clipBehavior: Clip.none,
-                        children: [
-                          ...cards
-                              .sublist(currentIndex)
-                              .map(
-                                (innerItem) => Positioned(
-                                  top:
-                                      (cards.indexOf(innerItem) -
-                                          currentIndex) *
+                    feedback: ValueListenableBuilder(
+                        valueListenable: _dragDetails,
+                        builder: (context, dragOffset, _) => AnimatedRotation(
+                            turns:
+                                lerpDouble(0, pi / 6, 0.05 * dragOffset.dx) ??
+                                    0.0,
+                            curve: Curves.easeIn,
+                            duration: Duration(milliseconds: 50),
+                            child: Container(
+                              clipBehavior: Clip.none,
+                              width: cardWidth,
+                              alignment: Alignment.topCenter,
+                              decoration: BoxDecoration(),
+                              height: cardHeight +
+                                  (cards.length - currentIndex) *
                                       offset *
                                       shrinkExtent,
-                                  child: SuitCard(suitCard: innerItem),
-                                ),
+                              child: Stack(
+                                alignment: AlignmentGeometry.topCenter,
+                                clipBehavior: Clip.none,
+                                children: [
+                                  ...cards.sublist(currentIndex).map(
+                                        (innerItem) => Positioned(
+                                          top: (cards.indexOf(innerItem) -
+                                                  currentIndex) *
+                                              offset *
+                                              shrinkExtent,
+                                          child: SuitCard(suitCard: innerItem),
+                                        ),
+                                      ),
+                                ],
                               ),
-                        ],
-                      ),
-                    ),
-
-                    child:
-                        startIndex <= currentIndex && columnNumber == srcColumnIndex
+                            ))),
+                    child: startIndex <= currentIndex &&
+                            columnNumber == srcColumnIndex
                         ? SizedBox()
                         : SuitCard(suitCard: item),
                   ),
@@ -235,17 +250,21 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     ));
   }
-  
+
   Widget uncategorizedCards() {
     return Row(
       spacing: 10,
       children: [
-        SuitCard(suitCard: _uncategorized[_uncategorized.indexOf(_uncategorized.last) - 1]),
-        SuitCard(suitCard: _uncategorized[_uncategorized.indexOf(_uncategorized.last)]),
+        SuitCard(
+            suitCard: _uncategorized[
+                _uncategorized.indexOf(_uncategorized.last) - 1]),
+        SuitCard(
+            suitCard:
+                _uncategorized[_uncategorized.indexOf(_uncategorized.last)]),
       ],
     );
   }
-  
+
   Widget suitCells() {
     return Row(
       spacing: 10,
@@ -253,47 +272,47 @@ class _HomeScreenState extends State<HomeScreen> {
         _spades.isNotEmpty
             ? SuitCard(suitCard: _spades.last)
             : CardCell(
-          suit: SuitDataClass(
-            type: SuitType.spades,
-            color: SuitColor.black,
-          ),
-        ),
+                suit: SuitDataClass(
+                  type: SuitType.spades,
+                  color: SuitColor.black,
+                ),
+              ),
         _diamonds.isNotEmpty
             ? Container(
-          color: AppColors.scarlettRush,
-          height: 90,
-          width: 70,
-        )
+                color: AppColors.scarlettRush,
+                height: 90,
+                width: 70,
+              )
             : CardCell(
-          suit: SuitDataClass(
-            type: SuitType.diamonds,
-            color: SuitColor.red,
-          ),
-        ),
+                suit: SuitDataClass(
+                  type: SuitType.diamonds,
+                  color: SuitColor.red,
+                ),
+              ),
         _clubs.isNotEmpty
             ? Container(
-          color: AppColors.scarlettRush,
-          height: 90,
-          width: 70,
-        )
+                color: AppColors.scarlettRush,
+                height: 90,
+                width: 70,
+              )
             : CardCell(
-          suit: SuitDataClass(
-            type: SuitType.clubs,
-            color: SuitColor.black,
-          ),
-        ),
+                suit: SuitDataClass(
+                  type: SuitType.clubs,
+                  color: SuitColor.black,
+                ),
+              ),
         _hearts.isNotEmpty
             ? Container(
-          color: AppColors.scarlettRush,
-          height: 90,
-          width: 70,
-        )
+                color: AppColors.scarlettRush,
+                height: 90,
+                width: 70,
+              )
             : CardCell(
-          suit: SuitDataClass(
-            type: SuitType.hearts,
-            color: SuitColor.red,
-          ),
-        ),
+                suit: SuitDataClass(
+                  type: SuitType.hearts,
+                  color: SuitColor.red,
+                ),
+              ),
       ],
     );
   }
