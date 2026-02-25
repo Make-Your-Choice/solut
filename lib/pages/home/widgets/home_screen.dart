@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:solut/shared/consts/card_sizes.dart';
+import 'package:solut/shared/consts/card_source.dart';
 import 'package:solut/shared/consts/card_type.dart';
 import 'package:solut/shared/data_calsses/suit_card_data_class.dart';
 import 'package:solut/shared/data_calsses/suit_data_class.dart';
@@ -21,7 +22,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<SuitCardDataClass> _uncategorized = List.empty(growable: true);
+  final List<SuitCardDataClass> _shuffle = List.empty(growable: true);
 
   final List<SuitCardDataClass> _clubs = List.empty(growable: true);
   final List<SuitCardDataClass> _spades = List.empty(growable: true);
@@ -35,8 +36,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final ValueNotifier<Offset> _dragDetails = ValueNotifier(Offset.zero);
 
+  final ValueNotifier<int> _currentShuffleIndex = ValueNotifier(0);
+
   static const double offset = 20;
 
+  CardSource _currentSource = CardSource.column;
   double shrinkExtent = 1;
 
   List<SuitCardDataClass> getColumnValues(int index, int length) {
@@ -55,12 +59,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void replaceCards(
-    DragTargetDetails<SuitCardDataClass> firstCard,
-    List<SuitCardDataClass> srcColumn,
+    DragTargetDetails<SuitCardDataClass>? firstCard,
+    List<SuitCardDataClass>? srcColumn,
   ) {
-    srcColumn.removeRange(srcColumn.indexOf(firstCard.data), srcColumn.length);
-    if (srcColumn.isNotEmpty) {
-      srcColumn.last.setFaceUp(true);
+    switch (_currentSource) {
+      case CardSource.column : {
+        srcColumn!.removeRange(srcColumn.indexOf(firstCard!.data), srcColumn.length);
+        if (srcColumn.isNotEmpty) {
+          srcColumn.last.setFaceUp(true);
+        }
+      }
+      case CardSource.shuffle: {
+        _shuffle.removeAt(_currentShuffleIndex.value);
+      }
     }
   }
 
@@ -73,34 +84,60 @@ class _HomeScreenState extends State<HomeScreen> {
     return dest.suit.color != src.suit.color;
   }
 
-  void handleDrag(
-    DragTargetDetails<SuitCardDataClass> firstCard,
-    List<SuitCardDataClass> destColumn,
-    int targetIndex,
-  ) {
+  void handleDrag(DragTargetDetails<SuitCardDataClass> firstCard,
+      List<SuitCardDataClass> destColumn,
+      int targetIndex,) {
     final List<SuitCardDataClass> targetColumn = List.empty(growable: true);
 
-    targetColumn.addAll(getCardsWithOffset(firstCard, _columns[targetIndex]!));
+    switch (_currentSource) {
+      case CardSource.column : {
+        targetColumn.addAll(
+            getCardsWithOffset(firstCard, _columns[targetIndex]!));
+      }
+      case CardSource.shuffle: {
+        targetColumn.add(firstCard.data);
+      }
+    }
+
     if (destColumn.isNotEmpty) {
       if (!checkCardNumberOk(targetColumn.first, destColumn.last)) {
         _srcColumnIndex.value = -1;
         return;
       }
     }
-    replaceCards(firstCard, _columns[targetIndex]!);
+
+    replaceCards(firstCard, _columns[targetIndex]);
 
     //todo maybe add scroll instead?
-    if (destColumn.length + targetColumn.length > 9) {
+    if (destColumn.length + targetColumn.length >= 10) {
       setState(() {
         shrinkExtent = 0.8;
       });
-    } else if (destColumn.length + targetColumn.length <= 12) {
+    } else if (destColumn.length + targetColumn.length <= 16 && destColumn.length + targetColumn.length > 10) {
       setState(() {
         shrinkExtent = 0.6;
       });
     }
+
     destColumn.addAll(targetColumn);
-    _srcColumnIndex.value = -1;
+    switch (_currentSource) {
+      case CardSource.column : {
+        _srcColumnIndex.value = -1;
+      }
+      case CardSource.shuffle: {
+
+        if (_shuffle.isNotEmpty) {
+          if (_shuffle.length - 1 == _currentShuffleIndex.value) {
+            _currentShuffleIndex.value = -1;
+          } else {
+            _currentShuffleIndex.value--;
+          }
+          _shuffle[_currentShuffleIndex.value].setFaceUp(true);
+        }
+
+      }
+    }
+
   }
 
   @override
@@ -119,8 +156,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     cardsPerColumn = cards.length - currentIndex;
 
-    _uncategorized.addAll(getColumnValues(currentIndex, cardsPerColumn));
-    _uncategorized.last.setFaceUp(true);
+    _shuffle.addAll(getColumnValues(currentIndex, cardsPerColumn));
+    _shuffle.first.setFaceUp(true);
 
     super.initState();
   }
@@ -142,7 +179,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                uncategorizedCards(),
+                shuffleCards(),
+                Spacer(),
                 suitCells(),
               ],
             ),
@@ -187,6 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   top: currentIndex.toDouble() * offset * shrinkExtent,
                   child: Draggable(
                     onDragStarted: () {
+                      _currentSource = CardSource.column;
                       _srcColumnIndex.value = columnNumber;
                       _startCardIndex.value = currentIndex;
                     },
@@ -208,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         valueListenable: _dragDetails,
                         builder: (context, dragOffset, _) => AnimatedRotation(
                             turns:
-                                lerpDouble(0, pi / 6, 0.05 * dragOffset.dx) ??
+                                lerpDouble(0, 0.125, 0.05 * dragOffset.dx) ??
                                     0.0,
                             curve: Curves.easeIn,
                             duration: Duration(milliseconds: 50),
@@ -251,17 +290,61 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
   }
 
-  Widget uncategorizedCards() {
-    return Row(
-      spacing: 10,
-      children: [
-        SuitCard(
-            suitCard: _uncategorized[
-                _uncategorized.indexOf(_uncategorized.last) - 1]),
-        SuitCard(
-            suitCard:
-                _uncategorized[_uncategorized.indexOf(_uncategorized.last)]),
-      ],
+  Widget shuffleCards() {
+    return ValueListenableBuilder(valueListenable: _currentShuffleIndex,
+        builder: (context, currentShuffleIndex, _) =>
+        _shuffle.isNotEmpty ? Row(
+          spacing: 10,
+          children: [
+            _shuffle.length > 1 ?
+            GestureDetector(
+                onTap: () {
+                  if (currentShuffleIndex == -1) {
+                    _currentShuffleIndex.value = 0;
+                    _shuffle[_currentShuffleIndex.value].setFaceUp(true);
+                  } else {
+                    if (currentShuffleIndex == _shuffle.length - 1) {
+                      _currentShuffleIndex.value = -1;
+                      _shuffle.forEach((item) => item.setFaceUp(false));
+                    } else {
+                      _currentShuffleIndex.value++;
+                      _shuffle[_currentShuffleIndex.value].setFaceUp(true);
+                    }
+                  }
+                },
+                child: currentShuffleIndex + 1 == _shuffle.length ? Container(
+                  height: 90, width: 70,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.teaGreen,
+                  ),
+                ) : SuitCard(suitCard: _shuffle[currentShuffleIndex + 1])
+            ) : Container(
+              height: 90, width: 70, decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: AppColors.teaGreen,
+            ),
+            ),
+
+            currentShuffleIndex != -1 ?
+            Draggable(
+              onDragStarted: () {
+                _currentSource = CardSource.shuffle;
+              },
+              dragAnchorStrategy: childDragAnchorStrategy,
+              hitTestBehavior: HitTestBehavior.opaque,
+              data: _shuffle[currentShuffleIndex],
+              feedback: SuitCard(suitCard: _shuffle[currentShuffleIndex]),
+              child: SuitCard(suitCard: _shuffle[currentShuffleIndex]),
+            ) : Container(
+              height: 90, width: 70, decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: AppColors.teaGreen,
+            ),
+            ),
+
+          ],
+        ) : SizedBox()
     );
   }
 
@@ -272,47 +355,47 @@ class _HomeScreenState extends State<HomeScreen> {
         _spades.isNotEmpty
             ? SuitCard(suitCard: _spades.last)
             : CardCell(
-                suit: SuitDataClass(
-                  type: SuitType.spades,
-                  color: SuitColor.black,
-                ),
-              ),
+          suit: SuitDataClass(
+            type: SuitType.spades,
+            color: SuitColor.black,
+          ),
+        ),
         _diamonds.isNotEmpty
             ? Container(
-                color: AppColors.scarlettRush,
-                height: 90,
-                width: 70,
-              )
+          color: AppColors.scarlettRush,
+          height: 90,
+          width: 70,
+        )
             : CardCell(
-                suit: SuitDataClass(
-                  type: SuitType.diamonds,
-                  color: SuitColor.red,
-                ),
-              ),
+          suit: SuitDataClass(
+            type: SuitType.diamonds,
+            color: SuitColor.red,
+          ),
+        ),
         _clubs.isNotEmpty
             ? Container(
-                color: AppColors.scarlettRush,
-                height: 90,
-                width: 70,
-              )
+          color: AppColors.scarlettRush,
+          height: 90,
+          width: 70,
+        )
             : CardCell(
-                suit: SuitDataClass(
-                  type: SuitType.clubs,
-                  color: SuitColor.black,
-                ),
-              ),
+          suit: SuitDataClass(
+            type: SuitType.clubs,
+            color: SuitColor.black,
+          ),
+        ),
         _hearts.isNotEmpty
             ? Container(
-                color: AppColors.scarlettRush,
-                height: 90,
-                width: 70,
-              )
+          color: AppColors.scarlettRush,
+          height: 90,
+          width: 70,
+        )
             : CardCell(
-                suit: SuitDataClass(
-                  type: SuitType.hearts,
-                  color: SuitColor.red,
-                ),
-              ),
+          suit: SuitDataClass(
+            type: SuitType.hearts,
+            color: SuitColor.red,
+          ),
+        ),
       ],
     );
   }
