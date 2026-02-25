@@ -1,0 +1,4 @@
+enum CardSource {
+  shuffle,
+  column
+}
