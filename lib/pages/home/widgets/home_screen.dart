@@ -10,6 +10,7 @@ import 'package:solut/shared/data_calsses/suit_card_data_class.dart';
 import 'package:solut/shared/data_calsses/suit_data_class.dart';
 import 'package:solut/shared/theme/app_colors.dart';
 import 'package:solut/shared/ui%20kit/card_cell.dart';
+import 'package:solut/shared/ui%20kit/drag_rotatable.dart';
 
 import '../../../shared/repositories/data.dart';
 import '../../../shared/ui kit/suit_card.dart';
@@ -223,13 +224,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 return Positioned(
                   top: currentIndex.toDouble() * offset * shrinkExtent,
-                  child: Draggable(
+                  child: DragRotatable(
+                    dragDetails: _dragDetails,
                     onDragStarted: () {
                       _currentSource = CardSource.column;
                       _srcColumnIndex.value = columnNumber;
                       _startCardIndex.value = currentIndex;
                     },
-                    onDragUpdate: (DragUpdateDetails details) {
+                    onDragUpdate: (details) {
                       if ((_dragDetails.value.dx - details.delta.dx).abs() >
                           0.5) {
                         _dragDetails.value = details.delta;
@@ -240,44 +242,35 @@ class _HomeScreenState extends State<HomeScreen> {
                       _srcColumnIndex.value = -1;
                       _startCardIndex.value = -1;
                     },
-                    dragAnchorStrategy: childDragAnchorStrategy,
-                    hitTestBehavior: HitTestBehavior.opaque,
                     data: item,
-                    feedback: ValueListenableBuilder(
-                        valueListenable: _dragDetails,
-                        builder: (context, dragOffset, _) => AnimatedRotation(
-                            turns:
-                                lerpDouble(0, 0.125, 0.05 * dragOffset.dx) ??
-                                    0.0,
-                            curve: Curves.easeIn,
-                            duration: Duration(milliseconds: 50),
-                            child: Container(
-                              clipBehavior: Clip.none,
-                              width: cardWidth,
-                              alignment: Alignment.topCenter,
-                              decoration: BoxDecoration(),
-                              height: cardHeight +
-                                  (cards.length - currentIndex) *
+                    feedback: Container(
+                      clipBehavior: Clip.none,
+                      width: cardWidth,
+                      alignment: Alignment.topCenter,
+                      decoration: BoxDecoration(),
+                      height: cardHeight +
+                          (cards.length - currentIndex) *
+                              offset *
+                              shrinkExtent,
+                      child: Stack(
+                        alignment: AlignmentGeometry.topCenter,
+                        clipBehavior: Clip.none,
+                        children: [
+                          ...cards.sublist(currentIndex).map(
+                                (innerItem) =>
+                                Positioned(
+                                  top: (cards.indexOf(innerItem) -
+                                      currentIndex) *
                                       offset *
                                       shrinkExtent,
-                              child: Stack(
-                                alignment: AlignmentGeometry.topCenter,
-                                clipBehavior: Clip.none,
-                                children: [
-                                  ...cards.sublist(currentIndex).map(
-                                        (innerItem) => Positioned(
-                                          top: (cards.indexOf(innerItem) -
-                                                  currentIndex) *
-                                              offset *
-                                              shrinkExtent,
-                                          child: SuitCard(suitCard: innerItem),
-                                        ),
-                                      ),
-                                ],
-                              ),
-                            ))),
+                                  child: SuitCard(suitCard: innerItem),
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
                     child: startIndex <= currentIndex &&
-                            columnNumber == srcColumnIndex
+                        columnNumber == srcColumnIndex
                         ? SizedBox()
                         : SuitCard(suitCard: item),
                   ),
@@ -327,12 +320,21 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             currentShuffleIndex != -1 ?
-            Draggable(
+
+            DragRotatable(
+              dragDetails: _dragDetails,
               onDragStarted: () {
                 _currentSource = CardSource.shuffle;
               },
-              dragAnchorStrategy: childDragAnchorStrategy,
-              hitTestBehavior: HitTestBehavior.opaque,
+              onDragUpdate: (details) {
+                if ((_dragDetails.value.dx - details.delta.dx).abs() >
+                    0.5) {
+                  _dragDetails.value = details.delta;
+                }
+              },
+              onDraggableCanceled: (velocity, dragOffset) {
+                _dragDetails.value = Offset.zero;
+              },
               data: _shuffle[currentShuffleIndex],
               feedback: SuitCard(suitCard: _shuffle[currentShuffleIndex]),
               child: SuitCard(suitCard: _shuffle[currentShuffleIndex]),
