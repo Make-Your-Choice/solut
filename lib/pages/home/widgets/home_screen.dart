@@ -336,7 +336,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 _dragDetails.value = Offset.zero;
               },
               data: _shuffle[currentShuffleIndex],
-              feedback: SuitCard(suitCard: _shuffle[currentShuffleIndex]),
+              feedback: AnimatedSlide(
+                duration: Duration(milliseconds: 180),
+                offset: Offset(lerpDouble(_dragDetails.value.dx, 0, 0.1) ?? 0, lerpDouble(_dragDetails.value.dy, 0, 0.1) ?? 0),
+                child: SuitCard(suitCard: _shuffle[currentShuffleIndex])),
               child: SuitCard(suitCard: _shuffle[currentShuffleIndex]),
             ) : Container(
               height: 90, width: 70, decoration: BoxDecoration(
