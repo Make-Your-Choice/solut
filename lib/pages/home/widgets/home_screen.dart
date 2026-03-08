@@ -3,12 +3,17 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:solut/shared/consts/card_number.dart';
 import 'package:solut/shared/consts/card_sizes.dart';
 import 'package:solut/shared/consts/card_source.dart';
 import 'package:solut/shared/consts/card_type.dart';
 import 'package:solut/shared/data_calsses/suit_card_data_class.dart';
 import 'package:solut/shared/data_calsses/suit_data_class.dart';
+import 'package:solut/shared/providers/clubs_provider.dart';
+import 'package:solut/shared/providers/diamonds_provider.dart';
+import 'package:solut/shared/providers/hearts_provider.dart';
 import 'package:solut/shared/providers/shuffle_provider.dart';
+import 'package:solut/shared/providers/spades_provider.dart';
 import 'package:solut/shared/theme/app_colors.dart';
 import 'package:solut/shared/ui%20kit/card_cell.dart';
 import 'package:solut/shared/ui%20kit/drag_rotatable.dart';
@@ -24,11 +29,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final List<SuitCardDataClass> _clubs = List.empty(growable: true);
-  final List<SuitCardDataClass> _spades = List.empty(growable: true);
-  final List<SuitCardDataClass> _diamonds = List.empty(growable: true);
-  final List<SuitCardDataClass> _hearts = List.empty(growable: true);
-
   final Map<int, List<SuitCardDataClass>> _columns = {};
 
   final ValueNotifier<int> _srcColumnIndex = ValueNotifier(-1);
@@ -82,57 +82,140 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  bool checkCardNumberOk(SuitCardDataClass src, SuitCardDataClass dest) {
+  bool checkCardNumberOkDesc(SuitCardDataClass src, SuitCardDataClass dest) {
     return dest.number.index - src.number.index == 1 &&
         src.number.index < dest.number.index;
   }
 
-  bool checkCardSuitOk(SuitCardDataClass src, SuitCardDataClass dest) {
+  bool checkCardNumberOkAsc(SuitCardDataClass src, SuitCardDataClass dest) {
+    return src.number.index - dest.number.index == 1 &&
+        dest.number.index < src.number.index;
+  }
+
+  bool checkCardDifferentSuit(SuitCardDataClass src, SuitCardDataClass dest) {
     return dest.suit.color != src.suit.color && dest.suit.type != src.suit.type;
   }
 
-  void handleDrag(
+  bool checkReplaceToColumn(SuitCardDataClass src, SuitCardDataClass dest) {
+    return checkCardNumberOkDesc(src, dest) &&
+        checkCardDifferentSuit(src, dest);
+  }
+
+  bool checkReplaceToSuitCell(SuitCardDataClass src, SuitCardDataClass? dest) {
+    return dest == null && src.number == CardNumber.A ||
+        dest != null &&
+            checkCardNumberOkAsc(src, dest) &&
+            !checkCardDifferentSuit(src, dest);
+  }
+
+  void updateShrink(int columnLength) {
+    //todo maybe add scroll instead?
+    if (columnLength >= 10) {
+      setState(() {
+        shrinkExtent = 0.8;
+      });
+    } else if (columnLength <= 16 && columnLength > 10) {
+      setState(() {
+        shrinkExtent = 0.6;
+      });
+    }
+  }
+
+  void handleDragColumn(
     DragTargetDetails<SuitCardDataClass> firstCard,
     List<SuitCardDataClass> destColumn,
-    int targetIndex,
+    List<SuitCardDataClass> srcColumn,
   ) {
-    final List<SuitCardDataClass> targetColumn = List.empty(growable: true);
-
-    switch (_currentSource) {
-      case CardSource.column:
-        {
-          targetColumn.addAll(
-            getCardsWithOffset(firstCard, _columns[targetIndex]!),
-          );
-        }
-      case CardSource.shuffle:
-        {
-          targetColumn.add(firstCard.data);
-        }
-    }
-
     if (destColumn.isNotEmpty) {
-      if (!checkCardNumberOk(targetColumn.first, destColumn.last)) {
+      if (!checkReplaceToColumn(firstCard.data, destColumn.last)) {
         _srcColumnIndex.value = -1;
         return;
       }
     }
 
-    replaceCards(firstCard, _columns[targetIndex]);
+    final List<SuitCardDataClass> targetColumn = srcColumn.sublist(
+      srcColumn.indexOf(firstCard.data),
+    );
 
-    //todo maybe add scroll instead?
-    if (destColumn.length + targetColumn.length >= 10) {
-      setState(() {
-        shrinkExtent = 0.8;
-      });
-    } else if (destColumn.length + targetColumn.length <= 16 &&
-        destColumn.length + targetColumn.length > 10) {
-      setState(() {
-        shrinkExtent = 0.6;
-      });
+    srcColumn.removeRange(srcColumn.indexOf(firstCard.data), srcColumn.length);
+
+    if (srcColumn.isNotEmpty) {
+      srcColumn.last.setFaceUp(true);
     }
 
+    updateShrink(destColumn.length + targetColumn.length);
+
     destColumn.addAll(targetColumn);
+    _srcColumnIndex.value = -1;
+  }
+
+  void handleDragShuffle(
+    DragTargetDetails<SuitCardDataClass> firstCard,
+    List<SuitCardDataClass> destColumn,
+  ) {
+    if (destColumn.isNotEmpty) {
+      if (!checkReplaceToColumn(firstCard.data, destColumn.last)) {
+        _srcColumnIndex.value = -1;
+        return;
+      }
+    }
+
+    ref.read(shuffleProvider.notifier).removeAt(_currentShuffleIndex.value);
+
+    updateShrink(destColumn.length + 1);
+
+    destColumn.add(firstCard.data);
+    if (_currentShuffleIndex.value == ref.read(shuffleProvider).length - 1 ||
+        _currentShuffleIndex.value == 0) {
+      _currentShuffleIndex.value = -1;
+      ref.read(shuffleProvider.notifier).setAllFaceDown();
+      return;
+    }
+    _currentShuffleIndex.value--;
+    ref
+        .read(shuffleProvider.notifier)
+        .setFaceUp(_currentShuffleIndex.value, isFaceUp: true);
+  }
+
+  void handleDragSuitCell(
+    DragTargetDetails<SuitCardDataClass> firstCard,
+    List<SuitCardDataClass> destColumn,
+    List<SuitCardDataClass>? srcColumn,
+  ) {
+    if (!checkReplaceToSuitCell(
+      firstCard.data,
+      destColumn.isNotEmpty ? destColumn.last : null,
+    )) {
+      _srcColumnIndex.value = -1;
+      return;
+    }
+
+    if (srcColumn != null) {
+      if (srcColumn.indexOf(firstCard.data) != srcColumn.length - 1) {
+        _srcColumnIndex.value = -1;
+        return;
+      }
+    }
+
+    switch (_currentSource) {
+      case CardSource.column:
+        {
+          srcColumn!.removeLast();
+          if (srcColumn.isNotEmpty) {
+            srcColumn.last.setFaceUp(true);
+          }
+        }
+      case CardSource.shuffle:
+        {
+          ref
+              .read(shuffleProvider.notifier)
+              .removeAt(_currentShuffleIndex.value);
+        }
+    }
+
+    updateShrink(destColumn.length + 1);
+
+    destColumn.add(firstCard.data);
     switch (_currentSource) {
       case CardSource.column:
         {
@@ -194,7 +277,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [shuffleCards(), Spacer(), suitCells()],
+            children: [
+              Flexible(child: shuffleCards()),
+              Expanded(child: suitCells()),
+            ],
           ),
           Expanded(
             child: Row(
@@ -221,7 +307,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               _srcColumnIndex.value = -1;
               return;
             }
-            handleDrag(details, cards, srcColumnIndex);
+            if (_currentSource == CardSource.column) {
+              handleDragColumn(details, cards, _columns[srcColumnIndex]!);
+            } else {
+              handleDragShuffle(details, cards);
+            }
             _dragDetails.value = Offset.zero;
           },
           builder: (context, accepted, rejected) => ValueListenableBuilder(
@@ -324,12 +414,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return;
               }
               if (index == ref.read(shuffleProvider).length - 1) {
-                ref
-                    .read(shuffleProvider.notifier)
-                    .setFaceUp(
-                      ref.read(shuffleProvider).length - 1,
-                      isFaceUp: false,
-                    );
+                ref.read(shuffleProvider.notifier).setAllFaceDown();
                 _currentShuffleIndex.value = -1;
                 return;
               }
@@ -411,39 +496,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Row(
       spacing: 10,
       children: [
-        _spades.isNotEmpty
-            ? SuitCard(suitCard: _spades.last)
-            : CardCell(
-                suit: SuitDataClass(
-                  type: SuitType.spades,
-                  color: SuitColor.black,
-                ),
-              ),
-        _diamonds.isNotEmpty
-            ? Container(color: AppColors.scarlettRush, height: 90, width: 70)
-            : CardCell(
-                suit: SuitDataClass(
-                  type: SuitType.diamonds,
-                  color: SuitColor.red,
-                ),
-              ),
-        _clubs.isNotEmpty
-            ? Container(color: AppColors.scarlettRush, height: 90, width: 70)
-            : CardCell(
-                suit: SuitDataClass(
-                  type: SuitType.clubs,
-                  color: SuitColor.black,
-                ),
-              ),
-        _hearts.isNotEmpty
-            ? Container(color: AppColors.scarlettRush, height: 90, width: 70)
-            : CardCell(
-                suit: SuitDataClass(
-                  type: SuitType.hearts,
-                  color: SuitColor.red,
-                ),
-              ),
+        Flexible(
+          child: suitCell(
+            ref.watch(spadesProvider),
+            SuitDataClass(type: SuitType.spades, color: SuitColor.black),
+          ),
+        ),
+        Flexible(
+          child: suitCell(
+            ref.watch(diamondsProvider),
+            SuitDataClass(type: SuitType.diamonds, color: SuitColor.red),
+          ),
+        ),
+        Flexible(
+          child: suitCell(
+            ref.watch(clubsProvider),
+            SuitDataClass(type: SuitType.clubs, color: SuitColor.black),
+          ),
+        ),
+        Flexible(
+          child: suitCell(
+            ref.watch(heartsProvider),
+            SuitDataClass(type: SuitType.hearts, color: SuitColor.red),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget suitCell(List<SuitCardDataClass> cards, SuitDataClass emptyState) {
+    return ValueListenableBuilder(
+      valueListenable: _srcColumnIndex,
+      builder: (context, srcColumnIndex, _) => DragTarget<SuitCardDataClass>(
+        onAcceptWithDetails: (details) {
+          handleDragSuitCell(
+            details,
+            cards,
+            _currentSource == CardSource.column
+                ? _columns[srcColumnIndex]!
+                : null,
+          );
+          _dragDetails.value = Offset.zero;
+        },
+        builder: (context, accepted, rejected) => cards.isNotEmpty
+            ? SuitCard(suitCard: cards.last)
+            : CardCell(suit: emptyState),
+      ),
     );
   }
 }
