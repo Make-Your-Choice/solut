@@ -10,6 +10,7 @@ import 'package:solut/shared/consts/card_type.dart';
 import 'package:solut/shared/data_calsses/suit_card_data_class.dart';
 import 'package:solut/shared/data_calsses/suit_data_class.dart';
 import 'package:solut/shared/providers/clubs_provider.dart';
+import 'package:solut/shared/providers/columns_provider.dart';
 import 'package:solut/shared/providers/diamonds_provider.dart';
 import 'package:solut/shared/providers/hearts_provider.dart';
 import 'package:solut/shared/providers/shuffle_provider.dart';
@@ -29,7 +30,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final Map<int, List<SuitCardDataClass>> _columns = {};
 
   final ValueNotifier<int> _srcColumnIndex = ValueNotifier(-1);
   final ValueNotifier<int> _startCardIndex = ValueNotifier(-1);
@@ -50,38 +50,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
     return currentList;
   }
-
-  List<SuitCardDataClass> getCardsWithOffset(
-    DragTargetDetails<SuitCardDataClass> firstCard,
-    List<SuitCardDataClass> srcColumn,
-  ) {
-    return srcColumn.sublist(srcColumn.indexOf(firstCard.data));
-  }
-
-  void replaceCards(
-    DragTargetDetails<SuitCardDataClass>? firstCard,
-    List<SuitCardDataClass>? srcColumn,
-  ) {
-    switch (_currentSource) {
-      case CardSource.column:
-        {
-          srcColumn!.removeRange(
-            srcColumn.indexOf(firstCard!.data),
-            srcColumn.length,
-          );
-          if (srcColumn.isNotEmpty) {
-            srcColumn.last.setFaceUp(true);
-          }
-        }
-      case CardSource.shuffle:
-        {
-          ref
-              .read(shuffleProvider.notifier)
-              .removeAt(_currentShuffleIndex.value);
-        }
-    }
-  }
-
+  
   bool checkCardNumberOkDesc(SuitCardDataClass src, SuitCardDataClass dest) {
     return dest.number.index - src.number.index == 1 &&
         src.number.index < dest.number.index;
@@ -124,7 +93,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void handleDragColumn(
     DragTargetDetails<SuitCardDataClass> firstCard,
     List<SuitCardDataClass> destColumn,
-    List<SuitCardDataClass> srcColumn,
+    int srcIndex,
   ) {
     if (destColumn.isNotEmpty) {
       if (!checkReplaceToColumn(firstCard.data, destColumn.last)) {
@@ -133,15 +102,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     }
 
-    final List<SuitCardDataClass> targetColumn = srcColumn.sublist(
-      srcColumn.indexOf(firstCard.data),
-    );
+    final List<SuitCardDataClass> targetColumn = ref
+        .read(columnsProvider)[srcIndex]!
+        .sublist(ref.read(columnsProvider)[srcIndex]!.indexOf(firstCard.data));
 
-    srcColumn.removeRange(srcColumn.indexOf(firstCard.data), srcColumn.length);
-
-    if (srcColumn.isNotEmpty) {
-      srcColumn.last.setFaceUp(true);
-    }
+    ref
+        .read(columnsProvider.notifier)
+        .removeFromColumn(srcIndex, firstCard.data);
+    ref.read(columnsProvider.notifier).setLastFaceUp(srcIndex);
 
     updateShrink(destColumn.length + targetColumn.length);
 
@@ -180,7 +148,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void handleDragSuitCell(
     DragTargetDetails<SuitCardDataClass> firstCard,
     List<SuitCardDataClass> destColumn,
-    List<SuitCardDataClass>? srcColumn,
+    int? srcIndex,
   ) {
     if (!checkReplaceToSuitCell(
       firstCard.data,
@@ -190,8 +158,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
-    if (srcColumn != null) {
-      if (srcColumn.indexOf(firstCard.data) != srcColumn.length - 1) {
+    if (srcIndex != null) {
+      if (ref.read(columnsProvider)[srcIndex]!.indexOf(firstCard.data) !=
+          ref.read(columnsProvider)[srcIndex]!.length - 1) {
         _srcColumnIndex.value = -1;
         return;
       }
@@ -200,10 +169,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     switch (_currentSource) {
       case CardSource.column:
         {
-          srcColumn!.removeLast();
-          if (srcColumn.isNotEmpty) {
-            srcColumn.last.setFaceUp(true);
-          }
+          ref.read(columnsProvider.notifier).removeLastFromColumn(srcIndex!);
+          ref.read(columnsProvider.notifier).setLastFaceUp(srcIndex);
         }
       case CardSource.shuffle:
         {
@@ -242,18 +209,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     cards.shuffle(Random());
 
-    int currentIndex = 0;
-    int cardsPerColumn = 1;
-
-    for (int i = 0; i < 7; i++) {
-      _columns[i] = getColumnValues(currentIndex, cardsPerColumn);
-      _columns[i]?.last.setFaceUp(true);
-      currentIndex += cardsPerColumn;
-      cardsPerColumn++;
-    }
-
-    cardsPerColumn = cards.length - currentIndex;
     Future.microtask(() {
+      int currentIndex = 0;
+      int cardsPerColumn = 1;
+
+      for (int i = 0; i < 7; i++) {
+        ref
+            .read(columnsProvider.notifier)
+            .addAllToColumn(i, getColumnValues(currentIndex, cardsPerColumn));
+        ref.read(columnsProvider.notifier).setLastFaceUp(i);
+        currentIndex += cardsPerColumn;
+        cardsPerColumn++;
+      }
+
+      cardsPerColumn = cards.length - currentIndex;
+
       ref
           .read(shuffleProvider.notifier)
           .addAll(getColumnValues(currentIndex, cardsPerColumn));
@@ -288,7 +258,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ..._columns.entries.map((item) => column(item.value, item.key)),
+                ...ref
+                    .watch(columnsProvider)
+                    .entries
+                    .map((item) => column(item.value, item.key)),
               ],
             ),
           ),
@@ -308,7 +281,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               return;
             }
             if (_currentSource == CardSource.column) {
-              handleDragColumn(details, cards, _columns[srcColumnIndex]!);
+              handleDragColumn(details, cards, srcColumnIndex);
             } else {
               handleDragShuffle(details, cards);
             }
@@ -532,9 +505,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           handleDragSuitCell(
             details,
             cards,
-            _currentSource == CardSource.column
-                ? _columns[srcColumnIndex]!
-                : null,
+            _currentSource == CardSource.column ? srcColumnIndex : null,
           );
           _dragDetails.value = Offset.zero;
         },
