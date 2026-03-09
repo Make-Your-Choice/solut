@@ -11,10 +11,18 @@ class ColumnsNotifier extends StateNotifier<Map<int, List<SuitCardDataClass>>> {
 
   void addAllToColumn(int columnIndex, List<SuitCardDataClass> cards) {
     final currentState = state;
-    currentState[columnIndex] = cards;
+    currentState[columnIndex] = currentState[columnIndex] == null
+        ? [...cards]
+        : [...currentState[columnIndex]!, ...cards];
     if (currentState[columnIndex]!.isNotEmpty) {
       currentState[columnIndex]!.last.setFaceUp(true);
     }
+    state = {...currentState};
+  }
+
+  void addToColumn(int columnIndex, SuitCardDataClass card) {
+    final currentState = state;
+    currentState[columnIndex] = [...currentState[columnIndex]!, card];
     state = {...currentState};
   }
 
@@ -63,10 +71,16 @@ class ColumnsNotifier extends StateNotifier<Map<int, List<SuitCardDataClass>>> {
       return;
     }
 
-    currentState[columnIndex]?.removeRange(
-      currentState[columnIndex]!.indexOf(card),
-      currentState[columnIndex]!.length - 1,
-    );
+    final targetIndex = currentState[columnIndex]!.indexOf(card);
+
+    if (targetIndex == 0) {
+      currentState[columnIndex] = [];
+    } else {
+      currentState[columnIndex] = currentState[columnIndex]!.sublist(
+        0,
+        targetIndex,
+      );
+    }
     state = {...currentState};
   }
 
@@ -81,7 +95,14 @@ class ColumnsNotifier extends StateNotifier<Map<int, List<SuitCardDataClass>>> {
       return;
     }
 
-    currentState[columnIndex]?.removeLast();
+    if (currentState[columnIndex]!.length == 1) {
+      currentState[columnIndex] = [];
+    } else {
+      currentState[columnIndex] = currentState[columnIndex]!.sublist(
+        0,
+        currentState[columnIndex]!.length - 1,
+      );
+    }
     state = {...currentState};
   }
 
