@@ -28,8 +28,8 @@ class ShuffleNotifier extends StateNotifier<List<SuitCardDataClass>> {
   }
 
   void removeAt(int index) {
-    final currentState = state;
-    currentState.removeAt(index);
-    state = [...currentState];
+    final currentState = [...state]
+    ..removeAt(index);
+    state = currentState;
   }
 }
