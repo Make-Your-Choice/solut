@@ -76,6 +76,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             !checkCardDifferentSuit(src, dest);
   }
 
+    List<SuitCardDataClass> getSuitCellData(SuitType suit) {
+    switch (suit) {
+      case SuitType.clubs:
+        return ref.read(clubsProvider);
+      case SuitType.diamonds:
+        return ref.read(diamondsProvider);
+      case SuitType.spades:
+        return ref.read(spadesProvider);
+      case SuitType.hearts:
+        return ref.read(heartsProvider);
+    }
+  }
+
+  void addCardsToCell(SuitType suit, SuitCardDataClass card) {
+    switch (suit) {
+      case SuitType.clubs:
+        ref.read(clubsProvider.notifier).add(card);
+      case SuitType.diamonds:
+        ref.read(diamondsProvider.notifier).add(card);
+      case SuitType.spades:
+        ref.read(spadesProvider.notifier).add(card);
+      case SuitType.hearts:
+        ref.read(heartsProvider.notifier).add(card);
+    }
+  }
+
   void updateShrink(int columnLength) {
     //todo maybe add scroll instead?
     if (columnLength >= 10) {
@@ -154,12 +180,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void handleDragSuitCell(
     DragTargetDetails<SuitCardDataClass> firstCard,
-    List<SuitCardDataClass> destColumn,
+    SuitType destSuit,
     int? srcIndex,
   ) {
     if (!checkReplaceToSuitCell(
       firstCard.data,
-      destColumn.isNotEmpty ? destColumn.last : null,
+      getSuitCellData(destSuit).isNotEmpty
+          ? getSuitCellData(destSuit).last
+          : null,
     )) {
       ref.read(sourceColumnIndexProvider.notifier).setIndex(-1);
       return;
@@ -187,9 +215,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
     }
 
-    updateShrink(destColumn.length + 1);
+    updateShrink(getSuitCellData(destSuit).length + 1);
 
-    destColumn.add(firstCard.data);
+    addCardsToCell(destSuit, firstCard.data);
     switch (ref.read(currentCardsSourceProvider)) {
       case CardSource.column:
         {
@@ -280,99 +308,94 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget column(List<SuitCardDataClass> cards, int columnNumber) {
     return Flexible(
       child: DragTarget<SuitCardDataClass>(
-            onAcceptWithDetails: (details) {
-              if (ref.watch(sourceColumnIndexProvider) == columnNumber) {
-                ref.read(sourceColumnIndexProvider.notifier).setIndex(-1);
-                return;
-              }
-              if (ref.read(currentCardsSourceProvider) == CardSource.column) {
-                handleDragColumn(
-                  details,
-                  columnNumber,
-                  ref.read(sourceColumnIndexProvider),
-                );
-              } else {
-                handleDragShuffle(details, columnNumber);
-              }
-              _dragDetails.value = Offset.zero;
-            },
-            builder: (context, accepted, rejected) => ValueListenableBuilder(
-              valueListenable: _startCardIndex,
-              builder: (context, startIndex, _) => Stack(
-                alignment: AlignmentGeometry.topCenter,
-                clipBehavior: Clip.none,
-                children: [
-                  ...cards.map((item) {
-                    final currentIndex = cards.indexOf(item);
-                    return Positioned(
-                      top: currentIndex.toDouble() * offset * shrinkExtent,
-                      child: DragRotatable(
-                        dragDetails: _dragDetails,
-                        onDragStarted: () {
-                          ref
-                              .read(currentCardsSourceProvider.notifier)
-                              .setSource(CardSource.column);
-                          ref
-                              .read(sourceColumnIndexProvider.notifier)
-                              .setIndex(columnNumber);
-                          _startCardIndex.value = currentIndex;
-                        },
-                        onDragUpdate: (details) {
-                          if ((_dragDetails.value.dx - details.delta.dx).abs() >
-                              0.5) {
-                            _dragDetails.value = details.delta;
-                          }
-                        },
-                        onDraggableCanceled: (velocity, dragOffset) {
-                          _dragDetails.value = Offset.zero;
-                          ref
-                              .read(sourceColumnIndexProvider.notifier)
-                              .setIndex(-1);
-                          _startCardIndex.value = -1;
-                        },
-                        data: item,
-                        feedback: Container(
-                          clipBehavior: Clip.none,
-                          width: cardWidth,
-                          alignment: Alignment.topCenter,
-                          decoration: BoxDecoration(),
-                          height:
-                              cardHeight +
-                              (cards.length - currentIndex) *
-                                  offset *
-                                  shrinkExtent,
-                          child: Stack(
-                            alignment: AlignmentGeometry.topCenter,
-                            clipBehavior: Clip.none,
-                            children: [
-                              ...cards
-                                  .sublist(currentIndex)
-                                  .map(
-                                    (innerItem) => Positioned(
-                                      top:
-                                          (cards.indexOf(innerItem) -
-                                              currentIndex) *
-                                          offset *
-                                          shrinkExtent,
-                                      child: SuitCard(suitCard: innerItem),
-                                    ),
-                                  ),
-                            ],
-                          ),
-                        ),
-                        child:
-                            startIndex <= currentIndex &&
-                                columnNumber ==
-                                    ref.watch(sourceColumnIndexProvider)
-                            ? SizedBox()
-                            : SuitCard(suitCard: item),
+        onAcceptWithDetails: (details) {
+          if (ref.watch(sourceColumnIndexProvider) == columnNumber) {
+            ref.read(sourceColumnIndexProvider.notifier).setIndex(-1);
+            return;
+          }
+          if (ref.read(currentCardsSourceProvider) == CardSource.column) {
+            handleDragColumn(
+              details,
+              columnNumber,
+              ref.read(sourceColumnIndexProvider),
+            );
+          } else {
+            handleDragShuffle(details, columnNumber);
+          }
+          _dragDetails.value = Offset.zero;
+        },
+        builder: (context, accepted, rejected) => ValueListenableBuilder(
+          valueListenable: _startCardIndex,
+          builder: (context, startIndex, _) => Stack(
+            alignment: AlignmentGeometry.topCenter,
+            clipBehavior: Clip.none,
+            children: [
+              ...cards.map((item) {
+                final currentIndex = cards.indexOf(item);
+                return Positioned(
+                  top: currentIndex.toDouble() * offset * shrinkExtent,
+                  child: DragRotatable(
+                    dragDetails: _dragDetails,
+                    onDragStarted: () {
+                      ref
+                          .read(currentCardsSourceProvider.notifier)
+                          .setSource(CardSource.column);
+                      ref
+                          .read(sourceColumnIndexProvider.notifier)
+                          .setIndex(columnNumber);
+                      _startCardIndex.value = currentIndex;
+                    },
+                    onDragUpdate: (details) {
+                      if ((_dragDetails.value.dx - details.delta.dx).abs() >
+                          0.5) {
+                        _dragDetails.value = details.delta;
+                      }
+                    },
+                    onDraggableCanceled: (velocity, dragOffset) {
+                      _dragDetails.value = Offset.zero;
+                      ref.read(sourceColumnIndexProvider.notifier).setIndex(-1);
+                      _startCardIndex.value = -1;
+                    },
+                    data: item,
+                    feedback: Container(
+                      clipBehavior: Clip.none,
+                      width: cardWidth,
+                      alignment: Alignment.topCenter,
+                      decoration: BoxDecoration(),
+                      height:
+                          cardHeight +
+                          (cards.length - currentIndex) * offset * shrinkExtent,
+                      child: Stack(
+                        alignment: AlignmentGeometry.topCenter,
+                        clipBehavior: Clip.none,
+                        children: [
+                          ...cards
+                              .sublist(currentIndex)
+                              .map(
+                                (innerItem) => Positioned(
+                                  top:
+                                      (cards.indexOf(innerItem) -
+                                          currentIndex) *
+                                      offset *
+                                      shrinkExtent,
+                                  child: SuitCard(suitCard: innerItem),
+                                ),
+                              ),
+                        ],
                       ),
-                    );
-                  }),
-                ],
-              ),
-            ),
+                    ),
+                    child:
+                        startIndex <= currentIndex &&
+                            columnNumber == ref.watch(sourceColumnIndexProvider)
+                        ? SizedBox()
+                        : SuitCard(suitCard: item),
+                  ),
+                );
+              }),
+            ],
           ),
+        ),
+      ),
     );
   }
 
@@ -393,7 +416,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget shuffleFaceDown(int index) {
-    return ref.watch(shuffleProvider).length > 1
+    return ref.watch(shuffleProvider).isNotEmpty
         ? GestureDetector(
             onTap: () {
               if (index == -1) {
@@ -514,12 +537,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget suitCell(List<SuitCardDataClass> cards, SuitDataClass emptyState) {
+  Widget suitCell(List<SuitCardDataClass> cards, SuitDataClass suit) {
     return DragTarget<SuitCardDataClass>(
       onAcceptWithDetails: (details) {
         handleDragSuitCell(
           details,
-          cards,
+          suit.type,
           ref.read(currentCardsSourceProvider) == CardSource.column
               ? ref.read(sourceColumnIndexProvider)
               : null,
@@ -528,7 +551,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
       builder: (context, accepted, rejected) => cards.isNotEmpty
           ? SuitCard(suitCard: cards.last)
-          : CardCell(suit: emptyState),
+          : CardCell(suit: suit),
     );
   }
 }
